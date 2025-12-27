@@ -24,12 +24,13 @@ The application works **only with user-uploaded audio** and does not fetch, stre
 
 ## Tech Stack
 
-### Frontend
-- HTML
-- CSS
-- Vanilla JavaScript
-- HTML5 Audio element
+- Vite
+- TypeScript
+- React
+- shadcn-ui
+- Tailwind CSS
 
 ---
+
 
 
