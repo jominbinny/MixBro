@@ -1,73 +1,171 @@
-# Welcome to your Lovable project
+# MixBro
 
-## Project info
+MixBro is a web-based audio mixing tool that allows users to upload multiple audio files, define specific start and end timestamps for each file, set the order of usage, and generate a single stitched dance audio track.
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+---
 
-## How can I edit this code?
+## Overview
 
-There are several ways of editing your application.
+MixBro is designed for creating custom dance mixes by combining selected portions of multiple audio tracks. Users upload their own audio files, specify which segments to use, and MixBro processes these segments on the backend to produce one continuous output audio file.
 
-**Use Lovable**
+The application works **only with user-uploaded audio** and does not fetch, stream, or extract audio from external platforms such as YouTube or other third-party sources.
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+---
 
-Changes made via Lovable will be committed automatically to this repo.
+## Features
 
-**Use your preferred IDE**
+- Upload multiple audio files (`.mp3` or `.wav`)
+- Define start and end timestamps for each audio file
+- Specify the order in which audio segments should be played
+- Backend trimming of audio segments using FFmpeg
+- Concatenation of trimmed segments into a single output file
+- Download and playback of the final mixed audio
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+---
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+## Tech Stack
 
-Follow these steps:
+### Frontend
+- HTML
+- CSS
+- Vanilla JavaScript
+- HTML5 Audio element
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+### Backend
+- Node.js
+- Express.js
+- Multer (file uploads)
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+### Audio Processing
+- FFmpeg
 
-# Step 3: Install the necessary dependencies.
-npm i
+---
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+## Project Structure
+
+```
+mixbro/
+│
+├── uploads/
+│   ├── original/    # Original uploaded audio files
+│   ├── trimmed/     # Trimmed audio segments
+│   └── final/       # Final stitched output
+│
+├── routes/          # Express routes
+├── controllers/     # Request handling logic
+├── utils/
+│   └── ffmpeg.js    # FFmpeg processing utilities
+│
+├── server.js        # Express server entry point
+├── index.html       # Frontend UI
+├── style.css        # Basic styling
+└── script.js        # Frontend logic
 ```
 
-**Edit a file directly in GitHub**
+---
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+## How It Works
 
-**Use GitHub Codespaces**
+1. The user uploads multiple audio files.
+2. For each file, the user specifies:
+   - Start time (in seconds)
+   - End time (in seconds)
+   - Order of appearance in the final mix
+3. The backend validates the inputs.
+4. Each audio file is trimmed using FFmpeg based on the provided timestamps.
+5. The trimmed audio segments are concatenated in the specified order.
+6. A single final audio file is generated and sent back to the user.
+7. Temporary files are deleted after processing.
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+---
 
-## What technologies are used for this project?
+## Installation & Setup
 
-This project is built with:
+### Prerequisites
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+- Node.js (v16 or higher recommended)
+- FFmpeg installed and accessible from the command line
 
-## How can I deploy this project?
+---
 
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
+### Installing FFmpeg
 
-## Can I connect a custom domain to my Lovable project?
+#### Linux
+```bash
+sudo apt update
+sudo apt install ffmpeg
+```
 
-Yes, you can!
+#### macOS (using Homebrew)
+```bash
+brew install ffmpeg
+```
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+#### Windows
+1. Download FFmpeg from the official website.
+2. Extract the files.
+3. Add the `bin` directory to your system PATH.
+4. Verify installation:
+```bash
+ffmpeg -version
+```
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+---
+
+### Running the Project
+
+1. Clone the repository.
+2. Navigate to the project directory.
+3. Install dependencies:
+```bash
+npm install
+```
+4. Start the server:
+```bash
+node server.js
+```
+5. Open `index.html` in your browser.
+
+---
+
+## Usage Instructions
+
+1. Upload one or more audio files.
+2. Enter start and end timestamps (in seconds) for each file.
+3. Assign a unique order number to each audio segment.
+4. Click **Generate Mix**.
+5. Download or play the generated final audio track.
+
+---
+
+## Input Rules & Validation
+
+- Supported formats: `.mp3`, `.wav`
+- Start time must be less than end time
+- Timestamps must be within the audio duration
+- Each audio segment must have a unique order value
+
+Invalid inputs are rejected with appropriate error messages.
+
+---
+
+## Limitations
+
+- No waveform visualization
+- No drag-and-drop timeline
+- No real-time editing
+- Local filesystem storage only
+- No cloud deployment or streaming support
+
+---
+
+## Legal & Copyright Notice
+
+Users are responsible for ensuring they own or have the legal rights to use any audio files uploaded to MixBro.  
+MixBro does not provide, fetch, extract, or redistribute copyrighted content from external platforms.
+
+---
+
+## Author
+
+Developed as a focused audio-processing web project.
