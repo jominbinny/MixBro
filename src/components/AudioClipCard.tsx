@@ -1,5 +1,54 @@
 import { AudioClip, formatDuration } from "@/lib/audioProcessor";
 import { X, Music } from "lucide-react";
+import { useState, useEffect } from "react";
+
+interface NumberInputProps extends React.InputHTMLAttributes<HTMLInputElement> {
+  value: number;
+  onValueChange: (value: number) => void;
+}
+
+function NumberInput({ value, onValueChange, className, ...props }: NumberInputProps) {
+  const [localValue, setLocalValue] = useState(value.toString());
+  const [isEditing, setIsEditing] = useState(false);
+
+  useEffect(() => {
+    if (!isEditing) {
+      setLocalValue(value.toString());
+    }
+  }, [value, isEditing]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setLocalValue(val);
+    if (val === '') return;
+    const num = parseFloat(val);
+    if (!isNaN(num)) {
+      onValueChange(num);
+    }
+  };
+
+  const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+    setIsEditing(false);
+    if (localValue === '' || isNaN(parseFloat(localValue))) {
+      setLocalValue(value.toString());
+    }
+    props.onBlur?.(e);
+  };
+
+  return (
+    <input
+      {...props}
+      value={localValue}
+      onChange={handleChange}
+      onFocus={(e) => {
+        setIsEditing(true);
+        props.onFocus?.(e);
+      }}
+      onBlur={handleBlur}
+      className={className}
+    />
+  );
+}
 
 interface AudioClipCardProps {
   clip: AudioClip;
@@ -10,7 +59,7 @@ interface AudioClipCardProps {
 
 export function AudioClipCard({ clip, totalClips, onUpdate, onRemove }: AudioClipCardProps) {
   return (
-    <div className="glass-card rounded-lg p-3 relative group">
+    <div className="glass-card rounded-lg p-3 relative group w-full min-w-0 overflow-hidden">
       <button
         onClick={() => onRemove(clip.id)}
         className="absolute top-2 right-2 p-1 rounded-md bg-muted/50 hover:bg-destructive text-muted-foreground hover:text-destructive-foreground transition-colors"
@@ -24,7 +73,7 @@ export function AudioClipCard({ clip, totalClips, onUpdate, onRemove }: AudioCli
           <Music className="w-4 h-4" />
         </div>
         <div className="flex-1 min-w-0">
-          <h3 className="text-sm font-medium text-foreground truncate pr-6" title={clip.name}>
+          <h3 className="text-sm font-medium text-foreground truncate pr-10" title={clip.name}>
             {clip.name}
           </h3>
           <p className="text-xs text-muted-foreground">
@@ -33,21 +82,19 @@ export function AudioClipCard({ clip, totalClips, onUpdate, onRemove }: AudioCli
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
         <div>
           <label className="block text-[10px] text-muted-foreground mb-1">
             Start
           </label>
-          <input
+          <NumberInput
             type="number"
             min={0}
             max={clip.endTime - 0.01}
             step={0.1}
             value={clip.startTime}
-            onChange={(e) =>
-              onUpdate(clip.id, { startTime: parseFloat(e.target.value) || 0 })
-            }
-            className="w-full px-2 py-1.5 rounded-md bg-input border border-border text-foreground text-xs focus:outline-none focus:ring-1 focus:ring-ring"
+            onValueChange={(val) => onUpdate(clip.id, { startTime: val })}
+            className="w-full max-w-full px-2 py-1.5 rounded-md bg-input border border-border text-foreground text-sm sm:text-xs focus:outline-none focus:ring-1 focus:ring-ring"
           />
         </div>
 
@@ -55,16 +102,14 @@ export function AudioClipCard({ clip, totalClips, onUpdate, onRemove }: AudioCli
           <label className="block text-[10px] text-muted-foreground mb-1">
             End
           </label>
-          <input
+          <NumberInput
             type="number"
             min={clip.startTime + 0.01}
             max={clip.duration}
             step={0.1}
             value={clip.endTime}
-            onChange={(e) =>
-              onUpdate(clip.id, { endTime: parseFloat(e.target.value) || clip.duration })
-            }
-            className="w-full px-2 py-1.5 rounded-md bg-input border border-border text-foreground text-xs focus:outline-none focus:ring-1 focus:ring-ring"
+            onValueChange={(val) => onUpdate(clip.id, { endTime: val })}
+            className="w-full max-w-full px-2 py-1.5 rounded-md bg-input border border-border text-foreground text-sm sm:text-xs focus:outline-none focus:ring-1 focus:ring-ring"
           />
         </div>
 
@@ -72,17 +117,17 @@ export function AudioClipCard({ clip, totalClips, onUpdate, onRemove }: AudioCli
           <label className="block text-[10px] text-muted-foreground mb-1">
             Order
           </label>
-          <input
+          <NumberInput
             type="number"
             min={1}
             max={totalClips}
             step={1}
             value={clip.order}
-            onChange={(e) => {
-              const val = parseInt(e.target.value) || 1;
-              onUpdate(clip.id, { order: Math.min(Math.max(1, val), totalClips) });
+            onValueChange={(val) => {
+              const safeVal = Math.min(Math.max(1, val), totalClips);
+              onUpdate(clip.id, { order: safeVal });
             }}
-            className="w-full px-2 py-1.5 rounded-md bg-input border border-border text-foreground text-xs focus:outline-none focus:ring-1 focus:ring-ring"
+            className="w-full max-w-full px-2 py-1.5 rounded-md bg-input border border-border text-foreground text-sm sm:text-xs focus:outline-none focus:ring-1 focus:ring-ring"
           />
         </div>
       </div>

@@ -40,7 +40,7 @@ export function FileUploader({ onFilesSelected, isProcessing }: FileUploaderProp
     <div
       onDrop={handleDrop}
       onDragOver={handleDragOver}
-      className="glass-card rounded-xl p-8 text-center hover:border-primary/50 transition-all cursor-pointer warm-glow max-w-lg mx-auto"
+      className="glass-card rounded-xl p-6 md:p-8 text-center hover:border-primary/50 transition-all cursor-pointer warm-glow max-w-lg mx-auto"
       onClick={() => inputRef.current?.click()}
     >
       <input
@@ -57,10 +57,10 @@ export function FileUploader({ onFilesSelected, isProcessing }: FileUploaderProp
           <Music className="w-8 h-8" />
         </div>
         <div className="space-y-1.5">
-          <p className="text-xl font-playfair italic text-foreground text-warm-glow">
+          <p className="text-xl font-heading italic text-foreground text-warm-glow">
             Drop your tracks here
           </p>
-          <p className="text-sm font-lora italic text-primary/90">
+          <p className="text-sm font-sans italic text-primary/90">
             Or click to explore your soundscape
           </p>
           <p className="text-xs text-muted-foreground mt-1.5">
