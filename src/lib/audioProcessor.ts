@@ -225,9 +225,8 @@ export async function audioBufferToMp3(
   }
 
   return new Promise((resolve, reject) => {
-    const worker = new Worker(new URL('./mp3.worker.ts', import.meta.url), {
-      type: 'module'
-    });
+    // Use classic worker to support importScripts
+    const worker = new Worker(new URL('./mp3.worker.ts', import.meta.url));
 
     worker.onmessage = (e) => {
       if (e.data.error) {
@@ -245,7 +244,14 @@ export async function audioBufferToMp3(
     };
 
     worker.onerror = (error) => {
-      reject(error);
+      // Check if error is an ErrorEvent to get meaningful message
+      if (error instanceof ErrorEvent) {
+        console.error("Worker ErrorEvent:", error.message, error.filename, error.lineno);
+        reject(new Error(`Worker error: ${error.message} at ${error.filename}:${error.lineno}`));
+      } else {
+        console.error("Worker Unknown Error:", error);
+        reject(error);
+      }
       worker.terminate();
     };
 
