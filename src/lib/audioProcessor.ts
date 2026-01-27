@@ -199,7 +199,10 @@ export async function generateMix(clips: AudioClip[]): Promise<Blob> {
   return audioBufferToWav(finalBuffer);
 }
 
-export async function audioBufferToMp3(audioBuffer: AudioBuffer): Promise<Blob> {
+export async function audioBufferToMp3(
+  audioBuffer: AudioBuffer,
+  onProgress?: (progress: number) => void
+): Promise<Blob> {
   const channels = audioBuffer.numberOfChannels;
   const sampleRate = audioBuffer.sampleRate;
 
@@ -229,11 +232,16 @@ export async function audioBufferToMp3(audioBuffer: AudioBuffer): Promise<Blob> 
     worker.onmessage = (e) => {
       if (e.data.error) {
         reject(new Error(e.data.error));
+        worker.terminate();
+      } else if (e.data.progress !== undefined) {
+        if (onProgress) {
+          onProgress(e.data.progress);
+        }
       } else {
         const { mp3Data } = e.data;
         resolve(new Blob(mp3Data as unknown as BlobPart[], { type: 'audio/mp3' }));
+        worker.terminate();
       }
-      worker.terminate();
     };
 
     worker.onerror = (error) => {

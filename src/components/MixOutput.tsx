@@ -16,6 +16,7 @@ export function MixOutput({ audioBlob, audioBuffer, onReset }: MixOutputProps) {
   const [duration, setDuration] = useState(0);
   const [audioUrl, setAudioUrl] = useState("");
   const [isExportingMp3, setIsExportingMp3] = useState(false);
+  const [mp3Progress, setMp3Progress] = useState(0);
 
   useEffect(() => {
     const url = URL.createObjectURL(audioBlob);
@@ -62,8 +63,11 @@ export function MixOutput({ audioBlob, audioBuffer, onReset }: MixOutputProps) {
   const handleDownloadMp3 = async () => {
     if (!audioBuffer) return;
     setIsExportingMp3(true);
+    setMp3Progress(0);
     try {
-      const mp3Blob = await audioBufferToMp3(audioBuffer);
+      const mp3Blob = await audioBufferToMp3(audioBuffer, (progress) => {
+        setMp3Progress(progress);
+      });
       const url = URL.createObjectURL(mp3Blob);
       const a = document.createElement("a");
       a.href = url;
@@ -76,6 +80,7 @@ export function MixOutput({ audioBlob, audioBuffer, onReset }: MixOutputProps) {
       toast.error(`Failed to export MP3: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
       setIsExportingMp3(false);
+      setMp3Progress(0);
     }
   };
 
@@ -130,6 +135,16 @@ export function MixOutput({ audioBlob, audioBuffer, onReset }: MixOutputProps) {
           </div>
         </div>
 
+
+        {isExportingMp3 && (
+          <div className="w-full bg-secondary/50 rounded-full h-1.5 mb-2 overflow-hidden">
+            <div
+              className="bg-primary h-full rounded-full transition-all duration-300 ease-out"
+              style={{ width: `${mp3Progress}%` }}
+            />
+          </div>
+        )}
+
         <div className="grid grid-cols-2 gap-2">
           <button
             onClick={handleDownload}
@@ -142,10 +157,25 @@ export function MixOutput({ audioBlob, audioBuffer, onReset }: MixOutputProps) {
           <button
             onClick={handleDownloadMp3}
             disabled={!audioBuffer || isExportingMp3}
-            className="flex items-center justify-center gap-2 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex items-center justify-center gap-2 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed relative overflow-hidden"
           >
-            {isExportingMp3 ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-            MP3
+            {isExportingMp3 ? (
+              <span className="flex items-center gap-2 z-10">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                {mp3Progress}%
+              </span>
+            ) : (
+              <span className="flex items-center gap-2 z-10">
+                <Download className="w-4 h-4" />
+                MP3
+              </span>
+            )}
+            {isExportingMp3 && (
+              <div
+                className="absolute left-0 top-0 bottom-0 bg-black/10 transition-all duration-300 ease-out"
+                style={{ width: `${mp3Progress}%` }}
+              />
+            )}
           </button>
         </div>
       </div>

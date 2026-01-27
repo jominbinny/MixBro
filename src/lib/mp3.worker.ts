@@ -18,6 +18,12 @@ self.onmessage = (e: MessageEvent) => {
             if (mp3buf.length > 0) {
                 mp3Data.push(mp3buf);
             }
+
+            // Report progress every ~10 chunks to avoid flooding message queue
+            if (i % (sampleBlockSize * 10) === 0) {
+                const progress = Math.round((i / left.length) * 100);
+                self.postMessage({ progress });
+            }
         }
 
         const mp3buf = mp3encoder.flush();
