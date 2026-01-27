@@ -2,7 +2,7 @@ import { useState, useCallback } from "react";
 import { FileUploader } from "@/components/FileUploader";
 import { AudioClipCard } from "@/components/AudioClipCard";
 import { MixOutput } from "@/components/MixOutput";
-import { AudioClip, decodeAudioFile, validateClips, generateMix, formatDuration } from "@/lib/audioProcessor";
+import { AudioClip, decodeAudioFile, validateClips, generateMix, createMixBuffer, formatDuration } from "@/lib/audioProcessor";
 import { AlertCircle, Loader2, Headphones } from "lucide-react";
 import { toast } from "sonner";
 export default function Index() {
@@ -10,6 +10,7 @@ export default function Index() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [finalMix, setFinalMix] = useState<Blob | null>(null);
+  const [finalBuffer, setFinalBuffer] = useState<AudioBuffer | null>(null);
   const [errors, setErrors] = useState<string[]>([]);
   const handleFilesSelected = useCallback(async (files: FileList) => {
     setIsProcessing(true);
@@ -64,6 +65,11 @@ export default function Index() {
     setIsGenerating(true);
     setErrors([]);
     try {
+      // Create the raw audio buffer first
+      const buffer = await createMixBuffer(clips);
+      setFinalBuffer(buffer);
+
+      // Convert to WAV for preview/download (legacy behavior)
       const mixBlob = await generateMix(clips);
       setFinalMix(mixBlob);
       toast.success("Mix generated successfully!");
@@ -76,76 +82,77 @@ export default function Index() {
   };
   const handleReset = () => {
     setFinalMix(null);
+    setFinalBuffer(null);
     setClips([]);
     setErrors([]);
   };
   const totalDuration = clips.reduce((sum, clip) => sum + (clip.endTime - clip.startTime), 0);
   return <div className="min-h-screen">
-      <header className="border-b border-border/30 bg-card/40 backdrop-blur-md sticky top-0 z-10">
-        <div className="container max-w-3xl mx-auto py-3 px-4">
-          <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-full bg-primary/15 text-primary">
-              <Headphones className="w-5 h-5" />
-            </div>
-            <div>
-              <h1 className="text-lg font-playfair font-semibold text-foreground">
-                MixBro
-              </h1>
-              <p className="text-xs text-muted-foreground font-lora">Audio Mixer</p>
-            </div>
+    <header className="border-b border-border/30 bg-card/40 backdrop-blur-md sticky top-0 z-10">
+      <div className="container max-w-3xl mx-auto py-3 px-4">
+        <div className="flex items-center gap-2.5">
+          <div className="p-2 rounded-full bg-primary/15 text-primary">
+            <Headphones className="w-5 h-5" />
+          </div>
+          <div>
+            <h1 className="text-lg font-playfair font-semibold text-foreground">
+              MixBro
+            </h1>
+            <p className="text-xs text-muted-foreground font-lora">Audio Mixer</p>
           </div>
         </div>
-      </header>
+      </div>
+    </header>
 
-      <main className="container max-w-3xl mx-auto py-8 px-4">
-        {finalMix ? <MixOutput audioBlob={finalMix} onReset={handleReset} /> : <div className="space-y-6">
-            <FileUploader onFilesSelected={handleFilesSelected} isProcessing={isProcessing} />
+    <main className="container max-w-3xl mx-auto py-8 px-4">
+      {finalMix && finalBuffer ? <MixOutput audioBlob={finalMix} audioBuffer={finalBuffer} onReset={handleReset} /> : <div className="space-y-6">
+        <FileUploader onFilesSelected={handleFilesSelected} isProcessing={isProcessing} />
 
-            {clips.length === 0 && !isProcessing && <p className="text-center text-lg font-lora italic text-primary/80 text-warm-glow">
-                Curate your dance symphony
-              </p>}
+        {clips.length === 0 && !isProcessing && <p className="text-center text-lg font-lora italic text-primary/80 text-warm-glow">
+          Curate your dance symphony
+        </p>}
 
-            {isProcessing && <div className="flex items-center justify-center gap-2 py-3 text-muted-foreground font-lora text-sm">
-                <Loader2 className="w-4 h-4 animate-spin text-primary" />
-                <span>Loading audio files...</span>
-              </div>}
+        {isProcessing && <div className="flex items-center justify-center gap-2 py-3 text-muted-foreground font-lora text-sm">
+          <Loader2 className="w-4 h-4 animate-spin text-primary" />
+          <span>Loading audio files...</span>
+        </div>}
 
-            {clips.length > 0 && <>
-                <div className="flex items-center justify-between">
-                  <h2 className="text-sm font-semibold text-foreground font-playfair">
-                    Audio Clips ({clips.length})
-                  </h2>
-                  <span className="text-xs text-muted-foreground">
-                    Total: {formatDuration(totalDuration)}
-                  </span>
-                </div>
+        {clips.length > 0 && <>
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-foreground font-playfair">
+              Audio Clips ({clips.length})
+            </h2>
+            <span className="text-xs text-muted-foreground">
+              Total: {formatDuration(totalDuration)}
+            </span>
+          </div>
 
-                <div className="grid gap-3 md:grid-cols-2">
-                  {clips.map(clip => <AudioClipCard key={clip.id} clip={clip} totalClips={clips.length} onUpdate={handleUpdateClip} onRemove={handleRemoveClip} />)}
-                </div>
+          <div className="grid gap-3 md:grid-cols-2">
+            {clips.map(clip => <AudioClipCard key={clip.id} clip={clip} totalClips={clips.length} onUpdate={handleUpdateClip} onRemove={handleRemoveClip} />)}
+          </div>
 
-                {errors.length > 0 && <div className="bg-destructive/10 border border-destructive/30 rounded-lg p-3">
-                    <div className="flex items-start gap-2">
-                      <AlertCircle className="w-4 h-4 text-destructive shrink-0 mt-0.5" />
-                      <div>
-                        <p className="text-sm font-medium text-destructive">
-                          Please fix the following:
-                        </p>
-                        <ul className="mt-1 space-y-0.5 text-xs text-destructive/80">
-                          {errors.map((error, i) => <li key={i}>• {error}</li>)}
-                        </ul>
-                      </div>
-                    </div>
-                  </div>}
-
-                <button onClick={handleGenerateMix} disabled={isGenerating || clips.length === 0} className="w-full py-3 rounded-xl bg-primary text-primary-foreground font-playfair font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all warm-glow flex items-center justify-center gap-2">
-                  {isGenerating ? <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      Generating...
-                    </> : "Generate Mix"}
-                </button>
-              </>}
+          {errors.length > 0 && <div className="bg-destructive/10 border border-destructive/30 rounded-lg p-3">
+            <div className="flex items-start gap-2">
+              <AlertCircle className="w-4 h-4 text-destructive shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-medium text-destructive">
+                  Please fix the following:
+                </p>
+                <ul className="mt-1 space-y-0.5 text-xs text-destructive/80">
+                  {errors.map((error, i) => <li key={i}>• {error}</li>)}
+                </ul>
+              </div>
+            </div>
           </div>}
-      </main>
-    </div>;
+
+          <button onClick={handleGenerateMix} disabled={isGenerating || clips.length === 0} className="w-full py-3 rounded-xl bg-primary text-primary-foreground font-playfair font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all warm-glow flex items-center justify-center gap-2">
+            {isGenerating ? <>
+              <Loader2 className="w-4 h-4 animate-spin" />
+              Generating...
+            </> : "Generate Mix"}
+          </button>
+        </>}
+      </div>}
+    </main>
+  </div>;
 }

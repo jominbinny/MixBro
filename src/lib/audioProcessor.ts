@@ -173,7 +173,10 @@ export function validateClips(clips: AudioClip[]): string[] {
   return errors;
 }
 
-export async function generateMix(clips: AudioClip[]): Promise<Blob> {
+// @ts-ignore
+import lamejs from './lamejs-bundled';
+
+export async function createMixBuffer(clips: AudioClip[]): Promise<AudioBuffer> {
   // Sort by order
   const sortedClips = [...clips].sort((a, b) => a.order - b.order);
 
@@ -188,10 +191,59 @@ export async function generateMix(clips: AudioClip[]): Promise<Blob> {
   }
 
   // Concatenate all trimmed buffers
-  const finalBuffer = concatenateAudioBuffers(trimmedBuffers);
+  return concatenateAudioBuffers(trimmedBuffers);
+}
 
+export async function generateMix(clips: AudioClip[]): Promise<Blob> {
+  const finalBuffer = await createMixBuffer(clips);
   // Convert to WAV
   return audioBufferToWav(finalBuffer);
+}
+
+export async function audioBufferToMp3(audioBuffer: AudioBuffer): Promise<Blob> {
+  const channels = audioBuffer.numberOfChannels;
+  const sampleRate = audioBuffer.sampleRate;
+  const mp3encoder = new lamejs.Mp3Encoder(channels, sampleRate, 128); // 128kbps
+
+  // Get channel data and convert to Int16
+  const leftChannel = audioBuffer.getChannelData(0);
+  const rightChannel = channels > 1 ? audioBuffer.getChannelData(1) : leftChannel; // Use left for right if mono
+
+  const sampleBlockSize = 1152; // multiple of 576
+  const mp3Data: Int8Array[] = [];
+
+  // Convert float32 to int16
+  const left = new Int16Array(leftChannel.length);
+  const right = new Int16Array(rightChannel.length);
+
+  for (let i = 0; i < leftChannel.length; i++) {
+    left[i] = Math.max(-1, Math.min(1, leftChannel[i])) * (leftChannel[i] < 0 ? 0x8000 : 0x7FFF);
+  }
+
+  if (channels > 1) {
+    for (let i = 0; i < rightChannel.length; i++) {
+      right[i] = Math.max(-1, Math.min(1, rightChannel[i])) * (rightChannel[i] < 0 ? 0x8000 : 0x7FFF);
+    }
+  }
+
+  // Encode
+  for (let i = 0; i < left.length; i += sampleBlockSize) {
+    const leftChunk = left.subarray(i, i + sampleBlockSize);
+    const rightChunk = channels > 1 ? right.subarray(i, i + sampleBlockSize) : undefined;
+
+    // Mp3Encoder expects Int16Array
+    const mp3buf = mp3encoder.encodeBuffer(leftChunk, rightChunk);
+    if (mp3buf.length > 0) {
+      mp3Data.push(mp3buf);
+    }
+  }
+
+  const mp3buf = mp3encoder.flush();
+  if (mp3buf.length > 0) {
+    mp3Data.push(mp3buf);
+  }
+
+  return new Blob(mp3Data as unknown as BlobPart[], { type: 'audio/mp3' });
 }
 
 export function formatDuration(seconds: number): string {

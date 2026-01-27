@@ -1,39 +1,42 @@
-import { Download, Play, Pause, RotateCcw } from "lucide-react";
+import { Download, Play, Pause, RotateCcw, Loader2 } from "lucide-react";
 import { useState, useEffect } from "react";
-import { formatDuration } from "@/lib/audioProcessor";
+import { formatDuration, audioBufferToMp3 } from "@/lib/audioProcessor";
+import { toast } from "sonner";
 
 interface MixOutputProps {
   audioBlob: Blob;
+  audioBuffer: AudioBuffer | null;
   onReset: () => void;
 }
 
-export function MixOutput({ audioBlob, onReset }: MixOutputProps) {
+export function MixOutput({ audioBlob, audioBuffer, onReset }: MixOutputProps) {
   const [audio, setAudio] = useState<HTMLAudioElement | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [audioUrl, setAudioUrl] = useState("");
+  const [isExportingMp3, setIsExportingMp3] = useState(false);
 
   useEffect(() => {
     const url = URL.createObjectURL(audioBlob);
     setAudioUrl(url);
-    
+
     const audioElement = new Audio(url);
-    
+
     audioElement.addEventListener("loadedmetadata", () => {
       setDuration(audioElement.duration);
     });
-    
+
     audioElement.addEventListener("timeupdate", () => {
       setCurrentTime(audioElement.currentTime);
     });
-    
+
     audioElement.addEventListener("play", () => setIsPlaying(true));
     audioElement.addEventListener("pause", () => setIsPlaying(false));
     audioElement.addEventListener("ended", () => setIsPlaying(false));
-    
+
     setAudio(audioElement);
-    
+
     return () => {
       audioElement.pause();
       URL.revokeObjectURL(url);
@@ -54,6 +57,26 @@ export function MixOutput({ audioBlob, onReset }: MixOutputProps) {
     a.href = audioUrl;
     a.download = "final_mix.wav";
     a.click();
+  };
+
+  const handleDownloadMp3 = async () => {
+    if (!audioBuffer) return;
+    setIsExportingMp3(true);
+    try {
+      const mp3Blob = await audioBufferToMp3(audioBuffer);
+      const url = URL.createObjectURL(mp3Blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "final_mix.mp3";
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success("MP3 downloaded successfully!");
+    } catch (error) {
+      console.error("MP3 export error:", error);
+      toast.error(`Failed to export MP3: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      setIsExportingMp3(false);
+    }
   };
 
   const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -107,13 +130,24 @@ export function MixOutput({ audioBlob, onReset }: MixOutputProps) {
           </div>
         </div>
 
-        <button
-          onClick={handleDownload}
-          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
-        >
-          <Download className="w-4 h-4" />
-          Download Mix
-        </button>
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            onClick={handleDownload}
+            className="flex items-center justify-center gap-2 py-2.5 rounded-lg bg-secondary text-secondary-foreground text-sm font-medium hover:bg-secondary/80 transition-colors"
+          >
+            <Download className="w-4 h-4" />
+            WAV
+          </button>
+
+          <button
+            onClick={handleDownloadMp3}
+            disabled={!audioBuffer || isExportingMp3}
+            className="flex items-center justify-center gap-2 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isExportingMp3 ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+            MP3
+          </button>
+        </div>
       </div>
     </div>
   );
