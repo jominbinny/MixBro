@@ -173,8 +173,7 @@ export function validateClips(clips: AudioClip[]): string[] {
   return errors;
 }
 
-// @ts-ignore
-import lamejs from './lamejs-bundled';
+
 
 export async function createMixBuffer(clips: AudioClip[]): Promise<AudioBuffer> {
   // Sort by order
@@ -203,14 +202,10 @@ export async function generateMix(clips: AudioClip[]): Promise<Blob> {
 export async function audioBufferToMp3(audioBuffer: AudioBuffer): Promise<Blob> {
   const channels = audioBuffer.numberOfChannels;
   const sampleRate = audioBuffer.sampleRate;
-  const mp3encoder = new lamejs.Mp3Encoder(channels, sampleRate, 128); // 128kbps
 
   // Get channel data and convert to Int16
   const leftChannel = audioBuffer.getChannelData(0);
   const rightChannel = channels > 1 ? audioBuffer.getChannelData(1) : leftChannel; // Use left for right if mono
-
-  const sampleBlockSize = 1152; // multiple of 576
-  const mp3Data: Int8Array[] = [];
 
   // Convert float32 to int16
   const left = new Int16Array(leftChannel.length);
@@ -226,24 +221,33 @@ export async function audioBufferToMp3(audioBuffer: AudioBuffer): Promise<Blob> 
     }
   }
 
-  // Encode
-  for (let i = 0; i < left.length; i += sampleBlockSize) {
-    const leftChunk = left.subarray(i, i + sampleBlockSize);
-    const rightChunk = channels > 1 ? right.subarray(i, i + sampleBlockSize) : undefined;
+  return new Promise((resolve, reject) => {
+    const worker = new Worker(new URL('./mp3.worker.ts', import.meta.url), {
+      type: 'module'
+    });
 
-    // Mp3Encoder expects Int16Array
-    const mp3buf = mp3encoder.encodeBuffer(leftChunk, rightChunk);
-    if (mp3buf.length > 0) {
-      mp3Data.push(mp3buf);
-    }
-  }
+    worker.onmessage = (e) => {
+      if (e.data.error) {
+        reject(new Error(e.data.error));
+      } else {
+        const { mp3Data } = e.data;
+        resolve(new Blob(mp3Data as unknown as BlobPart[], { type: 'audio/mp3' }));
+      }
+      worker.terminate();
+    };
 
-  const mp3buf = mp3encoder.flush();
-  if (mp3buf.length > 0) {
-    mp3Data.push(mp3buf);
-  }
+    worker.onerror = (error) => {
+      reject(error);
+      worker.terminate();
+    };
 
-  return new Blob(mp3Data as unknown as BlobPart[], { type: 'audio/mp3' });
+    worker.postMessage({
+      channels,
+      sampleRate,
+      left,
+      right: channels > 1 ? right : undefined
+    }, [left.buffer, right.buffer]); // Transferables
+  });
 }
 
 export function formatDuration(seconds: number): string {
